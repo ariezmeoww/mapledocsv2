@@ -1,0 +1,31 @@
+instances:
+ - url: mapleai.docs.buildwithfern.com
+
+title: MapleAI
+
+layout:
+  searchbar-placement: header
+  page-width: full
+  tabs-placement: header
+
+tabs:
+  docs:
+    display-name: Docs
+    icon: book
+
+navigation:
+  - tab: docs
+    layout:
+      - api: API Reference
+colors:
+  accentPrimary:
+    dark: "#5c0ea1"
+    light: "#5c0ea1"
+
+logo:
+  dark: docs/assets/mapleai-normal.png
+  light: docs/assets/mapleai-normal.png
+  height: 20
+  href: https://mapleai.de
+
+favicon: docs/assets/mapleai-normal.png

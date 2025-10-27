@@ -1,0 +1,425 @@
+openapi: 3.0.3
+info:
+  title: MapleAI API
+  version: 1.1.0
+  description: |
+    MapleAI provides AI-powered endpoints for text, images, video, audio, embeddings, moderation, and account info.
+    All requests must be authenticated with a Bearer token.
+servers:
+  - url: https://api.mapleai.de/v1
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Models
+  - name: Chat
+  - name: Images
+  - name: Videos
+  - name: Responses
+  - name: Embeddings
+  - name: Audio
+  - name: Moderation
+  - name: Account
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+paths:
+  /models:
+    get:
+      tags: [Models]
+      summary: List available models
+      description: Retrieve a list of available MapleAI models.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+
+  /chat/completions:
+    post:
+      tags: [Chat]
+      summary: Create chat completion
+      description: Chat with MapleAI conversational models.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Message'
+                stream:
+                  type: boolean
+              required: [model, messages]
+      responses:
+        '200':
+          description: Successful chat completion
+
+  /images/generations:
+    post:
+      tags: [Images]
+      summary: Generate images
+      description: Create new images from text prompts.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: dall-e-3
+                prompt:
+                  type: string
+                size:
+                  type: string
+                n:
+                  type: integer
+                response_format:
+                  type: string
+                  example: b64_json
+              required: [model, prompt, response_format]
+      responses:
+        '200':
+          description: Image(s) generated successfully
+
+  /images/edits:
+    post:
+      tags: [Images]
+      summary: Edit images
+      description: Edit or extend existing images using mask and prompt input.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                prompt:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                mask:
+                  type: string
+                  format: binary
+                size:
+                  type: string
+                n:
+                  type: integer
+              required: [model, prompt, image]
+      responses:
+        '200':
+          description: Image edited successfully
+
+  /videos:
+    post:
+      tags: [Videos]
+      summary: Generate video
+      description: Generate a video from a prompt using models like Sora 2.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: sora-2
+                prompt:
+                  type: string
+                  example: A kitty talking about how awesome MapleAI is
+              required: [model, prompt]
+      responses:
+        '200':
+          description: Video generation request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  object: { type: string, example: video }
+                  status: { type: string, example: queued }
+                  model: { type: string, example: sora-2 }
+
+  /videos/{video_id}:
+    get:
+      tags: [Videos]
+      summary: Retrieve video status
+      description: Check the generation status of a submitted video job.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Video job metadata retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  object: { type: string, example: video }
+                  status: { type: string, example: queued }
+                  model: { type: string }
+
+  /videos/{video_id}/content:
+    get:
+      tags: [Videos]
+      summary: Retrieve rendered video
+      description: Download the generated video file once completed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Returns the generated video content (MP4)
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+
+  /responses:
+    post:
+      tags: [Responses]
+      summary: Unified Responses API
+      description: A single endpoint supporting both chat-style and instruction-style responses.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                input:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Message'
+                stream:
+                  type: boolean
+              required: [model, input]
+      responses:
+        '200':
+          description: Response created successfully
+
+  /embeddings:
+    post:
+      tags: [Embeddings]
+      summary: Create embeddings
+      description: Convert text into numeric vector representations.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: text-embedding-3-large
+                input:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items: { type: string }
+                encoding_format:
+                  type: string
+                  enum: [float, base64]
+      responses:
+        '200':
+          description: Embedding created successfully
+
+  /audio/speech:
+    post:
+      tags: [Audio]
+      summary: Text-to-speech
+      description: Generate lifelike speech output from text input.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: gpt-4o-mini-tts
+                input:
+                  type: string
+                voice:
+                  type: string
+                  enum:
+                    - alloy
+                    - ash
+                    - ballad
+                    - coral
+                    - echo
+                    - fable
+                    - onyx
+                    - nova
+                    - sage
+                    - shimmer
+                    - verse
+                response_format:
+                  type: string
+                  enum: [mp3, wav, ogg]
+                  default: mp3
+              required: [model, input, voice]
+      responses:
+        '200':
+          description: Speech generated successfully
+
+  /audio/transcriptions:
+    post:
+      tags: [Audio]
+      summary: Transcribe audio
+      description: Convert spoken audio into text.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+              required: [model, file]
+      responses:
+        '200':
+          description: Audio transcription successful
+
+  /audio/translations:
+    post:
+      tags: [Audio]
+      summary: Translate audio
+      description: Translate spoken audio into English.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+              required: [model, file]
+      responses:
+        '200':
+          description: Audio translation successful
+
+  /moderations:
+    post:
+      tags: [Moderation]
+      summary: Check content moderation
+      description: Evaluate text content against MapleAI policy.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                input:
+                  type: string
+              required: [model, input]
+      responses:
+        '200':
+          description: Moderation check performed successfully
+
+  /key-info:
+    get:
+      tags: [Account]
+      summary: Get key info
+      description: Retrieve metadata about your API key.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: API key info retrieved successfully
+    post:
+      tags: [Account]
+      summary: Post key info
+      description: Retrieve metadata about your API key via POST.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: API key info retrieved successfully
+
+  /usage-history:
+    get:
+      tags: [Account]
+      summary: Get usage history
+      description: View API usage for the past 7 days.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usage history retrieved successfully
+    post:
+      tags: [Account]
+      summary: Post usage history
+      description: Retrieve usage history via POST.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usage history retrieved successfully
