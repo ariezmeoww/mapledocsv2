@@ -1,12 +1,14 @@
 openapi: 3.0.3
 info:
   title: MapleAI API
-  version: 1.1.0
+  version: 1.1.1
   description: |
     MapleAI provides AI-powered endpoints for text, images, video, audio, embeddings, moderation, and account info.
     All requests must be authenticated with a Bearer token.
+
 servers:
   - url: https://api.mapleai.de/v1
+
 security:
   - bearerAuth: []
 
@@ -39,13 +41,12 @@ components:
           type: string
 
 paths:
+
   /models:
     get:
       tags: [Models]
       summary: List available models
       description: Retrieve a list of available MapleAI models.
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Successful response
@@ -55,8 +56,6 @@ paths:
       tags: [Chat]
       summary: Create chat completion
       description: Chat with MapleAI conversational models.
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -76,14 +75,54 @@ paths:
       responses:
         '200':
           description: Successful chat completion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: chatcmpl-abc123
+                  object:
+                    type: string
+                    example: chat.completion
+                  created:
+                    type: integer
+                    example: 1730391000
+                  model:
+                    type: string
+                    example: maple-chat-large
+                  choices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                          example: 0
+                        message:
+                          $ref: '#/components/schemas/Message'
+                        finish_reason:
+                          type: string
+                          example: stop
+                  usage:
+                    type: object
+                    properties:
+                      prompt_tokens:
+                        type: integer
+                        example: 12
+                      completion_tokens:
+                        type: integer
+                        example: 62
+                      total_tokens:
+                        type: integer
+                        example: 74
 
   /images/generations:
     post:
       tags: [Images]
       summary: Generate images
       description: Create new images from text prompts.
-      security:
-        - bearerAuth: []
       requestBody:
         content:
           application/json:
@@ -101,20 +140,37 @@ paths:
                   type: integer
                 response_format:
                   type: string
-                  example: b64_json
-              required: [model, prompt, response_format]
+                  enum: [b64_json, url]
+                  description: Optional. The server will choose a default if omitted.
+              required: [model, prompt]
       responses:
         '200':
           description: Image(s) generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: integer
+                    example: 1730391212
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        b64_json:
+                          type: string
+                          description: Returned if response_format=b64_json
+                        url:
+                          type: string
+                          description: Returned if response_format=url
 
   /images/edits:
     post:
       tags: [Images]
       summary: Edit images
-      description: Edit or extend existing images using mask and prompt input.  
-        The response format is set to `b64_json` by default.
-      security:
-        - bearerAuth: []
+      description: Edit or extend existing images using mask and prompt input.
       requestBody:
         required: true
         content:
@@ -135,15 +191,13 @@ paths:
                   format: binary
                 size:
                   type: string
-                  example: 1024x1024
                 n:
                   type: integer
-                  example: 1
                 response_format:
                   type: string
-                  description: Specifies the output format of the edited image.
-                  default: b64_json
                   enum: [b64_json, url]
+                  description: Defaults to b64_json
+                  default: b64_json
               required: [model, prompt, image]
       responses:
         '200':
@@ -155,7 +209,6 @@ paths:
                 properties:
                   created:
                     type: integer
-                    example: 1730391212
                   data:
                     type: array
                     items:
@@ -163,14 +216,14 @@ paths:
                       properties:
                         b64_json:
                           type: string
-                          description: Base64-encoded JSON image data.
+                        url:
+                          type: string
+
   /videos:
     post:
       tags: [Videos]
       summary: Generate video
       description: Generate a video from a prompt using models like Sora 2.
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -202,15 +255,11 @@ paths:
     get:
       tags: [Videos]
       summary: Retrieve video status
-      description: Check the generation status of a submitted video job.
-      security:
-        - bearerAuth: []
       parameters:
         - name: video_id
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Video job metadata retrieved
@@ -228,15 +277,11 @@ paths:
     get:
       tags: [Videos]
       summary: Retrieve rendered video
-      description: Download the generated video file once completed.
-      security:
-        - bearerAuth: []
       parameters:
         - name: video_id
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Returns the generated video content (MP4)
@@ -251,8 +296,6 @@ paths:
       tags: [Responses]
       summary: Unified Responses API
       description: A single endpoint supporting both chat-style and instruction-style responses.
-      security:
-        - bearerAuth: []
       requestBody:
         content:
           application/json:
@@ -277,8 +320,6 @@ paths:
       tags: [Embeddings]
       summary: Create embeddings
       description: Convert text into numeric vector representations.
-      security:
-        - bearerAuth: []
       requestBody:
         content:
           application/json:
@@ -304,9 +345,7 @@ paths:
     post:
       tags: [Audio]
       summary: Text-to-speech
-      description: Generate lifelike speech output from text input.
-      security:
-        - bearerAuth: []
+      description: Generate lifelike speech from text input.
       requestBody:
         content:
           application/json:
@@ -346,16 +385,14 @@ paths:
       tags: [Audio]
       summary: Transcribe audio
       description: Convert spoken audio into text.
-      security:
-        - bearerAuth: []
       requestBody:
+        required: true
         content:
           multipart/form-data:
             schema:
               type: object
               properties:
-                model:
-                  type: string
+                model: { type: string }
                 file:
                   type: string
                   format: binary
@@ -369,16 +406,14 @@ paths:
       tags: [Audio]
       summary: Translate audio
       description: Translate spoken audio into English.
-      security:
-        - bearerAuth: []
       requestBody:
+        required: true
         content:
           multipart/form-data:
             schema:
               type: object
               properties:
-                model:
-                  type: string
+                model: { type: string }
                 file:
                   type: string
                   format: binary
@@ -391,19 +426,14 @@ paths:
     post:
       tags: [Moderation]
       summary: Check content moderation
-      description: Evaluate text content against MapleAI policy.
-      security:
-        - bearerAuth: []
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                model:
-                  type: string
-                input:
-                  type: string
+                model: { type: string }
+                input: { type: string }
               required: [model, input]
       responses:
         '200':
@@ -413,18 +443,12 @@ paths:
     get:
       tags: [Account]
       summary: Get key info
-      description: Retrieve metadata about your API key.
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: API key info retrieved successfully
     post:
       tags: [Account]
       summary: Post key info
-      description: Retrieve metadata about your API key via POST.
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: API key info retrieved successfully
@@ -433,19 +457,12 @@ paths:
     get:
       tags: [Account]
       summary: Get usage history
-      description: View API usage for the past 7 days.
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Usage history retrieved successfully
     post:
       tags: [Account]
       summary: Post usage history
-      description: Retrieve usage history via POST.
-      security:
-        - bearerAuth: []
       responses:
         '200':
-
           description: Usage history retrieved successfully
